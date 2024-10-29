@@ -1,39 +1,116 @@
 library(tidyverse)
+library(reshape2)
+library(readxl)
+library(maps)
 
-data <- read_csv("user_behavior_dataset.csv")
+data <- read_excel("US Superstore data.xls")
 
 str(data)
 
+na_counts <- data |>
+  summarize(across(everything(), ~ sum(is.na(.)))) |>
+  pivot_longer(everything(), 
+               names_to = "Column", 
+               values_to = "NA_Count")
+
+na_counts
+
+data <- data |> select(-"Row ID")
+
 data <- data |>
-  mutate_if(is.character, as.factor)
+  mutate(across(
+    where(is.character) & !all_of(c("Product ID", "Product Name")),
+    as.factor
+  )) |>
+  mutate(`Postal Code` = as.factor(`Postal Code`)) |>
+  mutate(`Discount` = as.factor(`Discount`))
 
-data$`User Behavior Class` <- as.factor(data$`User Behavior Class`)
-
+str(data)
 summary(data)
 str(data)
 
-# Function to summarize numeric variables by levels of a categorical variable
 summarize_by_category <- function(data, category_var) {
-
+  
+  # Check if the input variable is a factor
   if (!is.factor(data[[category_var]])) {
     stop(paste(category_var, "must be a factor."))
   }
-
+  
   numeric_vars <- data |>
-    select(where(is.numeric), -`User ID`) |>
+    select(where(is.numeric)) |>
     colnames()
   
-  summary_data <- data |>
-    group_by(across(all_of(category_var))) |>
-    summarise(across(all_of(numeric_vars), list(
-      mean = ~mean(.x, na.rm = TRUE),
-      median = ~median(.x, na.rm = TRUE),
-      sd = ~sd(.x, na.rm = TRUE),
-      Q1 = ~quantile(.x, 0.25, na.rm = TRUE),
-      Q3 = ~quantile(.x, 0.75, na.rm = TRUE)
-    ), .names = "{col}_{fn}"))
+  # Group data by the categorical variable
+  grouped_data <- data |>
+    group_by(across(all_of(category_var)))
   
-  return(summary_data)
+  # Loop over numeric variables to apply summary statistics
+  for (var in numeric_vars) {
+    cat("\n", paste(var, "by", category_var), "\n")
+    
+    # Summarize each numeric variable for each category level
+    summary_data <- grouped_data |>
+      summarise(
+        Q1 = quantile(get(var), 0.25, na.rm = TRUE),
+        Mean = mean(get(var), na.rm = TRUE),
+        Median = median(get(var), na.rm = TRUE),
+        Q3 = quantile(get(var), 0.75, na.rm = TRUE),
+        SD = sd(get(var), na.rm = TRUE)
+      )
+    
+    print(as.data.frame(summary_data))
+  }
 }
 
-summarize_by_category(data, "Gender")
+# Example usage: Summarize numeric variables by 'Gender'
+summarize_by_category(data, "Region")
+
+
+
+
+# Function to aggregate data by state and generate a map plot based on the chosen metric
+get_data_map_plot <- function(data, 
+                              metric = "Profit") {
+  
+  num_vars <- colnames(data |> select(where(is.numeric)))
+  
+  if (!(metric %in% colnames(data)) || 
+      !is.numeric(data[[metric]])) {
+    stop("Metric must be: ",
+         paste(num_vars, collapse = ", "))
+  }
+  
+  # Summarize data by State
+  summarized_data <- data |>
+    group_by(State) |>
+    summarize(Total_Value = sum(.data[[metric]], na.rm = TRUE))
+  
+  # Load U.S. map data and prepare for merging
+  us_map <- map_data("state") |>
+    mutate(State = str_to_title(region)) 
+  
+  # Merge map data with summarized data
+  data_map <- us_map |>
+    left_join(summarized_data, by = "State")
+  
+  # Generate the plot with dynamic title
+  ggplot(data_map, 
+         aes(x = long, 
+             y = lat, 
+             group = group, 
+             fill = Total_Value)) +
+    geom_polygon(color = "white") +
+    coord_fixed(1.3) +
+    scale_fill_gradient(low = "lightblue", 
+                        high = "darkblue", 
+                        na.value = "grey90") +
+    labs(title = paste("Total", metric, "by State"), 
+         fill = paste("Total", metric)) +
+    theme_minimal() +
+    theme(axis.text = element_blank(), 
+          axis.ticks = element_blank(), 
+          panel.grid = element_blank())
+}
+
+get_data_map_plot(data, 
+                  metric = "sales")
