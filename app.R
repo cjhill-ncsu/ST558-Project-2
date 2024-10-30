@@ -11,8 +11,7 @@ data <- read_excel("US Superstore data.xls") |>
     where(is.character) & !all_of(c("Product ID", "Product Name")),
     as.factor
   )) |>
-  mutate(`Postal Code` = as.factor(`Postal Code`),
-         `Discount` = as.factor(`Discount`))
+  mutate(`Postal Code` = as.factor(`Postal Code`))
 
 # Define UI
 ui <- fluidPage(
@@ -49,9 +48,7 @@ ui <- fluidPage(
                  h4("Data Source"),
                  p("The data comes from a fictional superstore dataset on Kaggle."),
                  a(href = "https://www.kaggle.com/datasets/juhi1994/superstore/data", 
-                   "US Superstore Dataset on Kaggle", target = "_blank"),
-                 img(src = "store_logo.jpg", 
-                     height = "150px")),
+                   "US Superstore Dataset on Kaggle", target = "_blank")),
         
         tabPanel("Data Download", 
                  DTOutput("data_table"),
@@ -59,7 +56,21 @@ ui <- fluidPage(
                                 "Download Filtered Data")),
         
         tabPanel("Data Exploration", 
-                 plotOutput("state_map"))
+                 tabsetPanel(
+                   tabPanel("Map Plot", 
+                            plotOutput("state_map")),
+                   tabPanel("Plot 2",
+                            h4("Plot 2")),
+                   tabPanel("Plot 3",
+                            h4("Plot 3")),
+                   tabPanel("Plot 4",
+                            h4("Plot 4")),
+                   tabPanel("Plot 5",
+                            h4("Plot 5")),
+                   tabPanel("Plot 6",
+                            h4("Plot 6"))
+                 )
+        )
       )
     )
   )
@@ -68,7 +79,6 @@ ui <- fluidPage(
 # Define server
 server <- function(input, output, session) {
   
-  # Generate dynamic sliders for numeric variables
   output$slider1 <- renderUI({
     req(input$numeric_var1)
     range <- range(data[[input$numeric_var1]], 
@@ -91,25 +101,25 @@ server <- function(input, output, session) {
                 value = range)
   })
   
-  # Reactive subsetted data based on filters
   filtered_data <- reactive({
     req(input$apply_filter)
-    
     data %>%
       filter(
         Category %in% input$category_var1,
         Segment %in% input$category_var2,
-        between(.data[[input$numeric_var1]], input$slider1[1], input$slider1[2]),
-        between(.data[[input$numeric_var2]], input$slider2[1], input$slider2[2])
+        between(.data[[input$numeric_var1]], 
+                input$slider1[1], 
+                input$slider1[2]),
+        between(.data[[input$numeric_var2]], 
+                input$slider2[1], 
+                input$slider2[2])
       )
   })
   
-  # Render data table
   output$data_table <- renderDT({
     datatable(filtered_data())
   })
   
-  # Download handler for data
   output$download_data <- downloadHandler(
     filename = function() { paste("filtered_data.csv") },
     content = function(file) {
@@ -117,11 +127,8 @@ server <- function(input, output, session) {
     }
   )
   
-  # Map plotting function
   output$state_map <- renderPlot({
     req(filtered_data())
-    
-    # Aggregated plot function
     summarized_data <- filtered_data() |>
       group_by(State) |>
       summarize(Total_Value = sum(Sales, 
@@ -146,12 +153,8 @@ server <- function(input, output, session) {
                           na.value = "grey90") +
       labs(title = "Total Sales by State", 
            fill = "Total Sales") +
-      theme_minimal() +
-      theme(axis.text = element_blank(), 
-            axis.ticks = element_blank(), 
-            panel.grid = element_blank())
+      theme_minimal()
   })
 }
 
-# Run the application 
 shinyApp(ui = ui, server = server)
