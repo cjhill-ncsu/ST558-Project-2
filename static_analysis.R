@@ -113,4 +113,110 @@ get_data_map_plot <- function(data,
 }
 
 get_data_map_plot(data, 
-                  metric = "sales")
+                  metric = "Sales")
+
+
+
+
+
+
+
+
+# Monthly Sales Trends by Customer Segment
+data <- data |> 
+  mutate(
+    Order_Month = floor_date(`Order Date`, "month")
+  )
+monthly_sales <- data |> 
+  group_by(
+    Order_Month, 
+    Segment
+  ) |> 
+  summarise(
+    Monthly_Sales = sum(
+      Sales, 
+      na.rm = TRUE
+    )
+  )
+
+ggplot(monthly_sales, 
+       aes(
+         x = Order_Month, 
+         y = Monthly_Sales, 
+         color = Segment
+       )
+) +
+  geom_line(size = 1) +
+  labs(
+    title = "Monthly Sales Trends by Segment", 
+    x = "Order Month", 
+    y = "Monthly Sales"
+  ) +
+  theme_minimal()
+
+# Discount vs. Sales and Profit by Region with Scatter Plot
+ggplot(data, 
+       aes(
+         x = as.numeric(Discount), 
+         y = Sales, 
+         color = Region
+       )
+) +
+  geom_point(alpha = 0.6) +
+  facet_wrap(
+    ~ Region
+  ) +
+  labs(
+    title = "Impact of Discount on Sales by Region", 
+    x = "Discount", 
+    y = "Sales"
+  ) +
+  theme_minimal()
+
+# Quantity by Discount Level across Shipping Modes with Violin Plot
+ggplot(data, 
+       aes(
+         x = Discount, 
+         y = Quantity, 
+         fill = `Ship Mode`
+       )
+) +
+  geom_violin(trim = FALSE) +
+  labs(
+    title = "Quantity Distribution by Discount Level and Shipping Mode", 
+    x = "Discount", 
+    y = "Quantity"
+  ) +
+  theme_minimal()
+
+# Average Profit by Sub-Category with Bar Plot
+subcat_profit <- data |> 
+  group_by(
+    `Sub-Category`
+  ) |> 
+  summarise(
+    Avg_Profit = mean(
+      Profit, 
+      na.rm = TRUE
+    )
+  )
+
+ggplot(subcat_profit, 
+       aes(
+         x = reorder(`Sub-Category`, Avg_Profit), 
+         y = Avg_Profit, 
+         fill = Avg_Profit
+       )
+) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  labs(
+    title = "Average Profit by Sub-Category", 
+    x = "Sub-Category", 
+    y = "Average Profit"
+  ) +
+  scale_fill_gradient(
+    low = "lightblue", 
+    high = "darkblue"
+  ) +
+  theme_minimal()

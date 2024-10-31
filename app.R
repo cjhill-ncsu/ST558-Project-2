@@ -22,6 +22,7 @@ ui <- fluidPage(
       selectInput("category_var1", 
                   "Choose Category 1", 
                   choices = levels(data$Category)),
+      
       selectInput("category_var2", 
                   "Choose Category 2", 
                   choices = levels(data$Segment)),
