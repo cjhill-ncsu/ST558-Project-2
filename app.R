@@ -69,8 +69,10 @@ ui <- fluidPage(
                             plotOutput("state_map")),
                    tabPanel("Monthly Sales Trends by Segment", 
                             plotOutput("monthly_sales_plot")),
-                   tabPanel("Average Profit by Sub-Category"),
-                   tabPanel("Sales Distribution Histogram"),
+                   tabPanel("Average Profit by Sub-Category", 
+                            plotOutput("subcat_profit_plot")),
+                   tabPanel("Sales Distribution Histogram", 
+                            plotOutput("sales_distribution_plot")),
                    tabPanel("Quantity by Ship Mode and Segment"),
                    tabPanel("Sales vs Profit Scatter Plot")
                  )
@@ -80,10 +82,9 @@ ui <- fluidPage(
   )
 )
 
-# Define server
 server <- function(input, output, session) {
   
-  # Dynamic UI sliders for numeric variables
+  # sliders for numeric variables
   output$slider1 <- renderUI({
     req(input$numeric_var1)
     range <- range(data[[input$numeric_var1]], 
@@ -106,7 +107,7 @@ server <- function(input, output, session) {
                 value = range)
   })
   
-  # Reactive filtered data based on user inputs, triggered by apply button
+  # Reactive filtered data based on user inputs
   filtered_data <- eventReactive(input$apply_filter, {
     data_filtered <- data
     if (input$category_var1 != "All") {
@@ -140,7 +141,7 @@ server <- function(input, output, session) {
     }
   )
   
-  # Map Plot: Total Sales by State
+  # Map Plot
   output$state_map <- renderPlot({
     req(filtered_data())
     summarized_data <- filtered_data() |> 
@@ -170,7 +171,7 @@ server <- function(input, output, session) {
       theme_minimal()
   })
   
-  # Plot: Monthly Sales Trends by Segment
+  # Monthly Sales Trends by Segment
   output$monthly_sales_plot <- renderPlot({
     req(filtered_data())
     monthly_sales <- filtered_data() |> 
@@ -187,6 +188,44 @@ server <- function(input, output, session) {
       labs(title = "Monthly Sales Trends by Segment", 
            x = "Order Month", 
            y = "Monthly Sales") +
+      theme_minimal()
+  })
+  
+  # Average Profit by Sub-Category
+  output$subcat_profit_plot <- renderPlot({
+    req(filtered_data())
+    subcat_profit <- filtered_data() |> 
+      group_by(`Sub-Category`) |> 
+      summarize(Avg_Profit = mean(Profit, 
+                                  na.rm = TRUE))
+    
+    ggplot(subcat_profit, 
+           aes(x = reorder(`Sub-Category`, 
+                           Avg_Profit), 
+               y = Avg_Profit, 
+               fill = Avg_Profit)) +
+      geom_bar(stat = "identity") +
+      coord_flip() +
+      labs(title = "Average Profit by Sub-Category", 
+           x = "Sub-Category", 
+           y = "Average Profit") +
+      scale_fill_gradient(low = "lightblue", 
+                          high = "darkblue") +
+      theme_minimal()
+  })
+  
+  # Histogram of Sales
+  output$sales_distribution_plot <- renderPlot({
+    req(filtered_data())
+    ggplot(filtered_data(), 
+           aes(x = Sales)) +
+      geom_histogram(binwidth = 50, 
+                     fill = "blue", 
+                     color = "black", 
+                     alpha = 0.7) +
+      labs(title = "Sales Distribution Histogram", 
+           x = "Sales", 
+           y = "Frequency") +
       theme_minimal()
   })
 }
