@@ -22,13 +22,11 @@ ui <- fluidPage(
     sidebarPanel(
       selectInput("category_var1", 
                   "Choose Category (Product Type)", 
-                  choices = c("All", 
-                              levels(data$Category))),
+                  choices = c("All", levels(data$Category))),
       
       selectInput("category_var2", 
                   "Choose Segment (Customer Type)", 
-                  choices = c("All", 
-                              levels(data$Segment))),
+                  choices = c("All", levels(data$Segment))),
       
       selectInput("numeric_var1", 
                   "Select Numeric Variable 1", 
@@ -76,7 +74,23 @@ ui <- fluidPage(
                    tabPanel("Quantity by Ship Mode and Segment", 
                             plotOutput("quantity_shipmode_segment_plot")),
                    tabPanel("Sales vs Profit Scatter Plot", 
-                            plotOutput("sales_profit_scatter_plot"))
+                            plotOutput("sales_profit_scatter_plot")),
+                   tabPanel("Summary Statistics", 
+                            fluidRow(
+                              column(6,
+                                     selectInput("summary_category", 
+                                                 "Choose Category for Summary", 
+                                                 choices = names(select(data, where(is.factor)) |> 
+                                                                   select(-c("Order ID", "Customer ID", "Customer Name"))))
+                              ),
+                              column(6,
+                                     selectInput("summary_numeric", 
+                                                 "Choose Numeric Variable for Summary", 
+                                                 choices = names(select(data, where(is.numeric))))
+                              )
+                            ),
+                            DTOutput("summary_stats"))
+                   
                  )
         )
       )
@@ -144,7 +158,7 @@ server <- function(input, output, session) {
     }
   )
   
-  # Map of sales
+  # Map Plot: Total Sales by State
   output$state_map <- renderPlot({
     req(filtered_data())
     summarized_data <- filtered_data() |> 
@@ -174,7 +188,7 @@ server <- function(input, output, session) {
       theme_minimal()
   })
   
-  # Monthly Sales Trends by Segment
+  # Plot: Monthly Sales Trends by Segment
   output$monthly_sales_plot <- renderPlot({
     req(filtered_data())
     monthly_sales <- filtered_data() |> 
@@ -194,7 +208,7 @@ server <- function(input, output, session) {
       theme_minimal()
   })
   
-  # Average Profit by Sub-Category
+  # Plot: Average Profit by Sub-Category
   output$subcat_profit_plot <- renderPlot({
     req(filtered_data())
     subcat_profit <- filtered_data() |> 
@@ -217,7 +231,7 @@ server <- function(input, output, session) {
       theme_minimal()
   })
   
-  # Histogram of Sales
+  # Plot: Histogram of Sales
   output$sales_distribution_plot <- renderPlot({
     req(filtered_data())
     ggplot(filtered_data(), 
@@ -232,7 +246,7 @@ server <- function(input, output, session) {
       theme_minimal()
   })
   
-  # Aggregated Quantity by Ship Mode and Segment
+  # Plot: Aggregated Quantity by Ship Mode and Segment
   output$quantity_shipmode_segment_plot <- renderPlot({
     req(filtered_data())
     quantity_data <- filtered_data() |> 
@@ -254,7 +268,7 @@ server <- function(input, output, session) {
       scale_fill_brewer(palette = "Set2")
   })
   
-  # Sales vs Profit Scatter Plot with Discount Gradient
+  # Plot: Sales vs Profit Scatter Plot with Discount Gradient
   output$sales_profit_scatter_plot <- renderPlot({
     req(filtered_data())
     ggplot(filtered_data(), 
@@ -269,6 +283,31 @@ server <- function(input, output, session) {
            y = "Profit", 
            color = "Discount") +
       theme_minimal()
+  })
+  
+  # Summary Statistics Table
+  output$summary_stats <- renderDT({
+    req(input$summary_category)
+    req(input$summary_numeric)
+    req(filtered_data())
+    
+    # Calculate summary statistics for the selected numeric variable by the chosen category
+    summary_data <- filtered_data() |> 
+      group_by(across(all_of(input$summary_category))) |> 
+      summarize(
+        Min = min(.data[[input$summary_numeric]], na.rm = TRUE),
+        Q1 = quantile(.data[[input$summary_numeric]], 0.25, na.rm = TRUE),
+        Mean = mean(.data[[input$summary_numeric]], na.rm = TRUE),
+        Median = median(.data[[input$summary_numeric]], na.rm = TRUE),
+        Q3 = quantile(.data[[input$summary_numeric]], 0.75, na.rm = TRUE),
+        Max = max(.data[[input$summary_numeric]], na.rm = TRUE),
+        SD = sd(.data[[input$summary_numeric]], na.rm = TRUE),
+        .groups = "drop"
+      )
+    
+    datatable(summary_data, options = list(pageLength = 10)) |> 
+      formatRound(columns = c("Min", "Q1", "Mean", "Median", "Q3", "Max", "SD"), 
+                  digits = 3)
   })
 }
 

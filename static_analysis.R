@@ -43,11 +43,7 @@ summarize_by_category <- function(data, category_var) {
     group_by(across(all_of(category_var)))
   
   for (var in numeric_vars) {
-    cat("\n", 
-        paste(var, 
-              "by", 
-              category_var), 
-        "\n")
+    cat("\n", paste(var, "by", category_var), "\n")
     
     summary_data <- grouped_data |> 
       summarise(Q1 = quantile(get(var), 0.25, na.rm = TRUE),
