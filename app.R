@@ -73,8 +73,10 @@ ui <- fluidPage(
                             plotOutput("subcat_profit_plot")),
                    tabPanel("Sales Distribution Histogram", 
                             plotOutput("sales_distribution_plot")),
-                   tabPanel("Quantity by Ship Mode and Segment"),
-                   tabPanel("Sales vs Profit Scatter Plot")
+                   tabPanel("Quantity by Ship Mode and Segment", 
+                            plotOutput("quantity_shipmode_segment_plot")),
+                   tabPanel("Sales vs Profit Scatter Plot", 
+                            plotOutput("sales_profit_scatter_plot"))
                  )
         )
       )
@@ -82,9 +84,10 @@ ui <- fluidPage(
   )
 )
 
+# Define server
 server <- function(input, output, session) {
   
-  # sliders for numeric variables
+  # Dynamic UI sliders for numeric variables
   output$slider1 <- renderUI({
     req(input$numeric_var1)
     range <- range(data[[input$numeric_var1]], 
@@ -107,7 +110,7 @@ server <- function(input, output, session) {
                 value = range)
   })
   
-  # Reactive filtered data based on user inputs
+  # Reactive filtered data based on user inputs, triggered by apply button
   filtered_data <- eventReactive(input$apply_filter, {
     data_filtered <- data
     if (input$category_var1 != "All") {
@@ -141,7 +144,7 @@ server <- function(input, output, session) {
     }
   )
   
-  # Map Plot
+  # Map of sales
   output$state_map <- renderPlot({
     req(filtered_data())
     summarized_data <- filtered_data() |> 
@@ -226,6 +229,45 @@ server <- function(input, output, session) {
       labs(title = "Sales Distribution Histogram", 
            x = "Sales", 
            y = "Frequency") +
+      theme_minimal()
+  })
+  
+  # Aggregated Quantity by Ship Mode and Segment
+  output$quantity_shipmode_segment_plot <- renderPlot({
+    req(filtered_data())
+    quantity_data <- filtered_data() |> 
+      group_by(`Ship Mode`, 
+               Segment) |> 
+      summarize(Total_Quantity = sum(Quantity, 
+                                     na.rm = TRUE))
+    
+    ggplot(quantity_data, 
+           aes(x = `Ship Mode`, 
+               y = Total_Quantity, 
+               fill = Segment)) +
+      geom_bar(stat = "identity", 
+               position = "dodge") +
+      labs(title = "Total Quantity by Ship Mode and Segment", 
+           x = "Ship Mode", 
+           y = "Total Quantity") +
+      theme_minimal() +
+      scale_fill_brewer(palette = "Set2")
+  })
+  
+  # Sales vs Profit Scatter Plot with Discount Gradient
+  output$sales_profit_scatter_plot <- renderPlot({
+    req(filtered_data())
+    ggplot(filtered_data(), 
+           aes(x = Sales, 
+               y = Profit, 
+               color = Discount)) +
+      geom_point(alpha = 0.6) +
+      scale_color_gradient(low = "blue", 
+                           high = "red") +
+      labs(title = "Sales vs Profit with Discount Gradient", 
+           x = "Sales", 
+           y = "Profit", 
+           color = "Discount") +
       theme_minimal()
   })
 }
