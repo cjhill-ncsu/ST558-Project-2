@@ -4,6 +4,7 @@ library(readxl)
 library(maps)
 library(DT)
 library(lubridate)
+library(plotly)  # Added for Plotly support
 
 # Load data
 data <- read_excel("US Superstore data.xls") |>
@@ -11,8 +12,7 @@ data <- read_excel("US Superstore data.xls") |>
   mutate(across(where(is.character) & !all_of(c("Product ID", "Product Name")), 
                 as.factor),
          `Postal Code` = as.factor(`Postal Code`),
-         Order_Month = floor_date(`Order Date`, 
-                                  "month"))
+         Order_Month = floor_date(`Order Date`, "month"))
 
 # Define UI
 ui <- fluidPage(
@@ -64,33 +64,36 @@ ui <- fluidPage(
         tabPanel("Data Exploration", 
                  tabsetPanel(
                    tabPanel("Map Plot", 
-                            plotOutput("state_map")),
+                            plotlyOutput("state_map")),  
                    tabPanel("Monthly Sales Trends by Segment", 
-                            plotOutput("monthly_sales_plot")),
+                            plotlyOutput("monthly_sales_plot")),  
                    tabPanel("Average Profit by Sub-Category", 
-                            plotOutput("subcat_profit_plot")),
+                            plotlyOutput("subcat_profit_plot")),  
                    tabPanel("Sales Distribution Histogram", 
-                            plotOutput("sales_distribution_plot")),
+                            plotlyOutput("sales_distribution_plot")),  
                    tabPanel("Quantity by Ship Mode and Segment", 
-                            plotOutput("quantity_shipmode_segment_plot")),
+                            plotlyOutput("quantity_shipmode_segment_plot")),  
                    tabPanel("Sales vs Profit Scatter Plot", 
-                            plotOutput("sales_profit_scatter_plot")),
-                   tabPanel("Summary Statistics", 
+                            plotlyOutput("sales_profit_scatter_plot")),  
+                   tabPanel("Numeric Summary Statistics", 
                             fluidRow(
                               column(6,
                                      selectInput("summary_category", 
                                                  "Choose Category for Summary", 
-                                                 choices = names(select(data, where(is.factor)) |> 
-                                                                   select(-c("Order ID", "Customer ID", "Customer Name"))))
+                                                 choices = names(
+                                                   select(data, where(is.factor)) |> 
+                                                     select(-c("Order ID", 
+                                                               "Customer ID", 
+                                                               "Customer Name"))))
                               ),
                               column(6,
                                      selectInput("summary_numeric", 
                                                  "Choose Numeric Variable for Summary", 
-                                                 choices = names(select(data, where(is.numeric))))
+                                                 choices = names(
+                                                   select(data, where(is.numeric))))
                               )
                             ),
                             DTOutput("summary_stats"))
-                   
                  )
         )
       )
@@ -98,14 +101,14 @@ ui <- fluidPage(
   )
 )
 
+
 # Define server
 server <- function(input, output, session) {
   
   # Dynamic UI sliders for numeric variables
   output$slider1 <- renderUI({
     req(input$numeric_var1)
-    range <- range(data[[input$numeric_var1]], 
-                   na.rm = TRUE)
+    range <- range(data[[input$numeric_var1]], na.rm = TRUE)
     sliderInput("slider1", 
                 label = input$numeric_var1, 
                 min = range[1], 
@@ -115,8 +118,7 @@ server <- function(input, output, session) {
   
   output$slider2 <- renderUI({
     req(input$numeric_var2)
-    range <- range(data[[input$numeric_var2]], 
-                   na.rm = TRUE)
+    range <- range(data[[input$numeric_var2]], na.rm = TRUE)
     sliderInput("slider2", 
                 label = input$numeric_var2, 
                 min = range[1], 
@@ -136,12 +138,8 @@ server <- function(input, output, session) {
         filter(Segment == input$category_var2)
     }
     data_filtered |> 
-      filter(between(.data[[input$numeric_var1]], 
-                     input$slider1[1], 
-                     input$slider1[2]),
-             between(.data[[input$numeric_var2]], 
-                     input$slider2[1], 
-                     input$slider2[2]))
+      filter(between(.data[[input$numeric_var1]], input$slider1[1], input$slider1[2]),
+             between(.data[[input$numeric_var2]], input$slider2[1], input$slider2[2]))
   })
   
   # Data table
@@ -153,136 +151,105 @@ server <- function(input, output, session) {
   output$download_data <- downloadHandler(
     filename = function() { "filtered_data.csv" },
     content = function(file) {
-      write.csv(filtered_data(), 
-                file)
+      write.csv(filtered_data(), file)
     }
   )
   
-  # Map Plot: Total Sales by State
-  output$state_map <- renderPlot({
+  # Map Plot: Total Sales by State (Plotly)
+  output$state_map <- renderPlotly({
     req(filtered_data())
     summarized_data <- filtered_data() |> 
       group_by(State) |> 
-      summarize(Total_Value = sum(Sales, 
-                                  na.rm = TRUE))
+      summarize(Total_Value = sum(Sales, na.rm = TRUE))
     
     us_map <- map_data("state") |> 
       mutate(State = str_to_title(region))
     
     data_map <- us_map |> 
-      left_join(summarized_data, 
-                by = "State")
+      left_join(summarized_data, by = "State")
     
-    ggplot(data_map, 
-           aes(x = long, 
-               y = lat, 
-               group = group, 
-               fill = Total_Value)) +
+    gg <- ggplot(data_map, 
+                 aes(x = long, y = lat, group = group, fill = Total_Value)) +
       geom_polygon(color = "white") +
       coord_fixed(1.3) +
-      scale_fill_gradient(low = "lightblue", 
-                          high = "darkblue", 
-                          na.value = "grey90") +
-      labs(title = "Total Sales by State", 
-           fill = "Total Sales") +
+      scale_fill_gradient(low = "lightblue", high = "darkblue", na.value = "grey90") +
+      labs(title = "Total Sales by State", fill = "Total Sales") +
       theme_minimal()
+    
+    ggplotly(gg)
   })
   
-  # Plot: Monthly Sales Trends by Segment
-  output$monthly_sales_plot <- renderPlot({
+  # Monthly Sales Trends by Segment (Plotly)
+  output$monthly_sales_plot <- renderPlotly({
     req(filtered_data())
     monthly_sales <- filtered_data() |> 
-      group_by(Order_Month, 
-               Segment) |> 
-      summarize(Monthly_Sales = sum(Sales, 
-                                    na.rm = TRUE))
+      group_by(Order_Month, Segment) |> 
+      summarize(Monthly_Sales = sum(Sales, na.rm = TRUE))
     
-    ggplot(monthly_sales, 
-           aes(x = Order_Month, 
-               y = Monthly_Sales, 
-               color = Segment)) +
+    gg <- ggplot(monthly_sales, 
+                 aes(x = Order_Month, y = Monthly_Sales, color = Segment)) +
       geom_line(size = 1) +
-      labs(title = "Monthly Sales Trends by Segment", 
-           x = "Order Month", 
-           y = "Monthly Sales") +
+      labs(title = "Monthly Sales Trends by Segment", x = "Order Month", y = "Monthly Sales") +
       theme_minimal()
+    
+    ggplotly(gg)
   })
   
-  # Plot: Average Profit by Sub-Category
-  output$subcat_profit_plot <- renderPlot({
+  # Average Profit by Sub-Category (Plotly)
+  output$subcat_profit_plot <- renderPlotly({
     req(filtered_data())
     subcat_profit <- filtered_data() |> 
       group_by(`Sub-Category`) |> 
-      summarize(Avg_Profit = mean(Profit, 
-                                  na.rm = TRUE))
+      summarize(Avg_Profit = mean(Profit, na.rm = TRUE))
     
-    ggplot(subcat_profit, 
-           aes(x = reorder(`Sub-Category`, 
-                           Avg_Profit), 
-               y = Avg_Profit, 
-               fill = Avg_Profit)) +
+    gg <- ggplot(subcat_profit, 
+                 aes(x = reorder(`Sub-Category`, Avg_Profit), y = Avg_Profit, fill = Avg_Profit)) +
       geom_bar(stat = "identity") +
       coord_flip() +
-      labs(title = "Average Profit by Sub-Category", 
-           x = "Sub-Category", 
-           y = "Average Profit") +
-      scale_fill_gradient(low = "lightblue", 
-                          high = "darkblue") +
+      labs(title = "Average Profit by Sub-Category", x = "Sub-Category", y = "Average Profit") +
+      scale_fill_gradient(low = "lightblue", high = "darkblue") +
       theme_minimal()
+    
+    ggplotly(gg)
   })
   
-  # Plot: Histogram of Sales
-  output$sales_distribution_plot <- renderPlot({
+  # Sales Distribution Histogram (Plotly)
+  output$sales_distribution_plot <- renderPlotly({
     req(filtered_data())
-    ggplot(filtered_data(), 
-           aes(x = Sales)) +
-      geom_histogram(binwidth = 50, 
-                     fill = "blue", 
-                     color = "black", 
-                     alpha = 0.7) +
-      labs(title = "Sales Distribution Histogram", 
-           x = "Sales", 
-           y = "Frequency") +
+    gg <- ggplot(filtered_data(), aes(x = Sales)) +
+      geom_histogram(binwidth = 50, fill = "blue", color = "black", alpha = 0.7) +
+      labs(title = "Sales Distribution Histogram", x = "Sales", y = "Frequency") +
       theme_minimal()
+    
+    ggplotly(gg)
   })
   
-  # Plot: Aggregated Quantity by Ship Mode and Segment
-  output$quantity_shipmode_segment_plot <- renderPlot({
+  # Aggregated Quantity by Ship Mode and Segment (Plotly)
+  output$quantity_shipmode_segment_plot <- renderPlotly({
     req(filtered_data())
     quantity_data <- filtered_data() |> 
-      group_by(`Ship Mode`, 
-               Segment) |> 
-      summarize(Total_Quantity = sum(Quantity, 
-                                     na.rm = TRUE))
+      group_by(`Ship Mode`, Segment) |> 
+      summarize(Total_Quantity = sum(Quantity, na.rm = TRUE))
     
-    ggplot(quantity_data, 
-           aes(x = `Ship Mode`, 
-               y = Total_Quantity, 
-               fill = Segment)) +
-      geom_bar(stat = "identity", 
-               position = "dodge") +
-      labs(title = "Total Quantity by Ship Mode and Segment", 
-           x = "Ship Mode", 
-           y = "Total Quantity") +
+    gg <- ggplot(quantity_data, aes(x = `Ship Mode`, y = Total_Quantity, fill = Segment)) +
+      geom_bar(stat = "identity", position = "dodge") +
+      labs(title = "Total Quantity by Ship Mode and Segment", x = "Ship Mode", y = "Total Quantity") +
       theme_minimal() +
       scale_fill_brewer(palette = "Set2")
+    
+    ggplotly(gg)
   })
   
-  # Plot: Sales vs Profit Scatter Plot with Discount Gradient
-  output$sales_profit_scatter_plot <- renderPlot({
+  # Sales vs Profit Scatter Plot with Discount Gradient (Plotly)
+  output$sales_profit_scatter_plot <- renderPlotly({
     req(filtered_data())
-    ggplot(filtered_data(), 
-           aes(x = Sales, 
-               y = Profit, 
-               color = Discount)) +
+    gg <- ggplot(filtered_data(), aes(x = Sales, y = Profit, color = Discount)) +
       geom_point(alpha = 0.6) +
-      scale_color_gradient(low = "blue", 
-                           high = "red") +
-      labs(title = "Sales vs Profit with Discount Gradient", 
-           x = "Sales", 
-           y = "Profit", 
-           color = "Discount") +
+      scale_color_gradient(low = "blue", high = "red") +
+      labs(title = "Sales vs Profit with Discount Gradient", x = "Sales", y = "Profit", color = "Discount") +
       theme_minimal()
+    
+    ggplotly(gg)
   })
   
   # Summary Statistics Table
@@ -306,9 +273,9 @@ server <- function(input, output, session) {
       )
     
     datatable(summary_data, options = list(pageLength = 10)) |> 
-      formatRound(columns = c("Min", "Q1", "Mean", "Median", "Q3", "Max", "SD"), 
-                  digits = 3)
+      formatRound(columns = c("Min", "Q1", "Mean", "Median", "Q3", "Max", "SD"), digits = 3)
   })
 }
+
 
 shinyApp(ui = ui, server = server)
