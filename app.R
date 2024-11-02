@@ -16,7 +16,7 @@ data <- read_excel("US Superstore data.xls") |>
          Order_Month = floor_date(`Order Date`, "month"))
 
 # Define reusable message
-no_filter_message <- tags$h4("Please select a subset of the data by pressing the Apply Filter button in the sidebar.")
+no_filter_message <- tags$h3("Please select a subset of the data by pressing the Apply Filter button in the sidebar.")
 
 # Define UI ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ui <- fluidPage(
@@ -50,7 +50,6 @@ ui <- fluidPage(
     mainPanel(
       tabsetPanel(
         tabPanel("About", 
-                 
                  img(src = "logo.jpg", height = "100px", width = "auto"),
                  
                  h4("App Purpose"),
@@ -114,8 +113,13 @@ ui <- fluidPage(
             )
         )
       )
-    )
+    ),
+  
+  # Footer for the conditional message
+  tags$footer(
+    uiOutput("footer_message")
   )
+)
 
 
 # Define server ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -186,11 +190,21 @@ server <- function(input, output, session) {
   # Conditionally Download button or message
   output$conditional_download <- renderUI({
     if (filter_applied()) {
-      downloadButton("download_data", 
-                     "Download Filtered Data",
-                     class = "btn-primary btn-lg")
-    } else {
-      no_filter_message
+      div(
+        class = "p-3",  
+        downloadButton(
+          "download_data", 
+          "Download Filtered Data",
+          class = "btn-primary btn-lg"
+        )
+      )
+    } 
+  })
+  
+  # Conditional message in the About tab
+  output$footer_message <- renderUI({
+    if (!filter_applied()) {
+      no_filter_message  
     }
   })
   
