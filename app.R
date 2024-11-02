@@ -15,7 +15,7 @@ data <- read_excel("US Superstore data.xls") |>
          `Postal Code` = as.factor(`Postal Code`),
          Order_Month = floor_date(`Order Date`, "month"))
 
-# Define UI
+# Define UI ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ui <- fluidPage(
   titlePanel("US Superstore Analysis"),
   
@@ -116,7 +116,7 @@ ui <- fluidPage(
 )
 
 
-# Define server
+# Define server ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 server <- function(input, output, session) {
   
   # Dynamic UI sliders for numeric variables
@@ -138,6 +138,22 @@ server <- function(input, output, session) {
                 min = range[1], 
                 max = range[2], 
                 value = range)
+  })
+  
+  # Observe changes in numeric_var1 to update numeric_var2 choices
+  observeEvent(input$numeric_var1, {
+    # Get all numeric variable names
+    numeric_vars <- names(select(data, where(is.numeric)))
+    
+    # Remove the selected numeric_var1 from numeric_var2 choices
+    available_choices <- setdiff(numeric_vars, input$numeric_var1)
+    
+    # Update numeric_var2 choices dynamically
+    updateSelectInput(session, "numeric_var2", 
+                      choices = available_choices, 
+                      selected = ifelse(input$numeric_var2 %in% available_choices, 
+                                        input$numeric_var2, 
+                                        available_choices[1]))
   })
   
   # Reactive filtered data based on user inputs, triggered by apply button
@@ -291,5 +307,5 @@ server <- function(input, output, session) {
   })
 }
 
-
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 shinyApp(ui = ui, server = server)
