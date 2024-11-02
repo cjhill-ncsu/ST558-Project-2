@@ -9,19 +9,22 @@ library(plotly)
 # Load data
 data <- read_excel("US Superstore data.xls") |>
   select(- "Row ID") |>
-  mutate(across(where(is.character) & 
-                  !all_of(c("Product ID", "Product Name")), 
+  mutate(across(where(is.character) & !all_of(c("Product ID", "Product Name")), 
                 as.factor),
          `Postal Code` = as.factor(`Postal Code`),
          Order_Month = floor_date(`Order Date`, "month"))
 
-# Define reusable message
+# reusable message
 no_filter_message <- tags$h3("Please select a subset of the data by pressing the Apply Filter button in the sidebar.")
+
+# reusable button class
+button_class <- "btn btn-primary btn-lg btn-block"
 
 # Define UI ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ui <- fluidPage(
   titlePanel("US Superstore Analysis"),
   
+  # SIDEBAR
   sidebarLayout(
     sidebarPanel(
       selectInput("category_var1", 
@@ -44,41 +47,46 @@ ui <- fluidPage(
       
       actionButton("apply_filter", 
                    "Apply Filter",
-                   class = "btn-primary btn-lg")
+                   class = button_class)
     ),
     
+    # MAIN PANEL
     mainPanel(
+      
       tabsetPanel(
+        
+        # ABOUT
         tabPanel("About", 
-                 img(src = "logo.jpg", height = "100px", width = "auto"),
-                 
-                 h4("App Purpose"),
-                 p("This app allows users to explore data related to US Superstore sales."),
-                 
-                 h4("Data Source"),
-                 p("The data comes from a fictional superstore dataset on Kaggle."),
-                 a(href = "https://www.kaggle.com/datasets/juhi1994/superstore/data", 
-                   "US Superstore Dataset on Kaggle", 
-                   target = "_blank"),
-                 
-                 h4("Sidebar"),
-                 p("The sidebar allows users to filter the data based on product type, customer type, and/or two numeric variables."),
-                 
-                 h4("Data Download"),
-                 p("Users can download the filtered data as a CSV file."),
-                 
-                 h4("Data Exploration"),
-                 p("Here various plots are available to explore the data further.")
-                 ),
+           img(src = "logo.jpg", height = "100px", width = "auto"),
+           
+           h4("App Purpose"),
+           p("This app allows users to explore data related to US Superstore sales."),
+           
+           h4("Data Source"),
+           p("The data comes from a fictional superstore dataset on Kaggle."),
+           a(href = "https://www.kaggle.com/datasets/juhi1994/superstore/data", 
+             "US Superstore Dataset on Kaggle", 
+             target = "_blank"),
+           
+           h4("Sidebar"),
+           p("The sidebar allows users to filter the data based on product type, customer type, and/or two numeric variables."),
+           
+           h4("Data Download"),
+           p("Users can download the filtered data as a CSV file."),
+           
+           h4("Data Exploration"),
+           p("Here, various plots are available to explore the data visually.")
+           ),
         
-        
-          tabPanel("Data Download", 
+        # DOWNLOAD
+        tabPanel("Data Download", 
              fluidRow(
                column(12, uiOutput("conditional_download"))
              ),
              DTOutput("data_table")),
           
-          tabPanel("Data Exploration", 
+        # EXPLORATION
+        tabPanel("Data Exploration", 
              tabsetPanel(
                tabPanel("Map Plot", 
                         plotlyOutput("state_map")),  
@@ -96,16 +104,14 @@ ui <- fluidPage(
                   fluidRow(
                     column(6, selectInput("summary_category",
                         "Choose Category for Summary", 
-                        choices = names(select(data, 
-                                               where(is.factor)) |> 
-                         select(-c("Order ID", 
-                                   "Customer ID", 
-                                   "Customer Name"))))
+                        choices = names(select(data, where(is.factor)) |> 
+                           select(-c("Order ID", 
+                                     "Customer ID", 
+                                     "Customer Name"))))
                     ),
                     column(6, selectInput("summary_numeric", 
                          "Choose Numeric Variable for Summary", 
-                         choices = names(
-                           select(data, where(is.numeric))))
+                         choices = names(select(data, where(is.numeric))))
                     )
                   ),
                   DTOutput("summary_stats"))
@@ -115,12 +121,11 @@ ui <- fluidPage(
       )
     ),
   
-  # Footer for the conditional message
+  # Conditional message to press Apply Filter
   tags$footer(
     uiOutput("footer_message")
   )
 )
-
 
 # Define server ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 server <- function(input, output, session) {
@@ -183,32 +188,28 @@ server <- function(input, output, session) {
 
   # Track if Apply Filter has been pressed
   filter_applied <- reactiveVal(FALSE)
+  
   observeEvent(input$apply_filter, {
     filter_applied(TRUE)
   })
   
-  # Conditionally Download button or message
+  # display conditional Download button
   output$conditional_download <- renderUI({
     if (filter_applied()) {
-      div(
-        class = "p-3",  
-        downloadButton(
-          "download_data", 
-          "Download Filtered Data",
-          class = "btn-primary btn-lg"
-        )
-      )
+      downloadButton("download_data", 
+                     "Download Filtered Data",
+                     class = button_class)
     } 
   })
   
-  # Conditional message in the About tab
+  # Conditional message in footer
   output$footer_message <- renderUI({
     if (!filter_applied()) {
       no_filter_message  
     }
   })
   
-  # Data table for display
+  # Data table for display in Download tab
   output$data_table <- renderDT({
     req(filter_applied())
     datatable(filtered_data())
