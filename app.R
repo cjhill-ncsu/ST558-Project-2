@@ -4,12 +4,13 @@ library(readxl)
 library(maps)
 library(DT)
 library(lubridate)
-library(plotly)  # Added for Plotly support
+library(plotly)
 
 # Load data
 data <- read_excel("US Superstore data.xls") |>
   select(- "Row ID") |>
-  mutate(across(where(is.character) & !all_of(c("Product ID", "Product Name")), 
+  mutate(across(where(is.character) & 
+                  !all_of(c("Product ID", "Product Name")), 
                 as.factor),
          `Postal Code` = as.factor(`Postal Code`),
          Order_Month = floor_date(`Order Date`, "month"))
@@ -45,13 +46,27 @@ ui <- fluidPage(
     mainPanel(
       tabsetPanel(
         tabPanel("About", 
+                 
+                 img(src = "logo.jpg", height = "100px", width = "auto"),
+                 
                  h4("App Purpose"),
                  p("This app allows users to explore data related to US Superstore sales."),
+                 
                  h4("Data Source"),
                  p("The data comes from a fictional superstore dataset on Kaggle."),
                  a(href = "https://www.kaggle.com/datasets/juhi1994/superstore/data", 
                    "US Superstore Dataset on Kaggle", 
-                   target = "_blank")),
+                   target = "_blank"),
+                 
+                 h4("Sidebar"),
+                 p("The sidebar allows users to filter the data based on product type, customer type, and/or two numeric variables."),
+                 
+                 h4("Data Download"),
+                 p("Users can download the filtered data as a CSV file."),
+                 
+                 h4("Data Exploration"),
+                 p("Here various plots are available to explore the data further.")
+                 ),
         
         tabPanel("Data Download", 
                  fluidRow(
@@ -77,10 +92,9 @@ ui <- fluidPage(
                             plotlyOutput("sales_profit_scatter_plot")),  
                    tabPanel("Numeric Summary Statistics", 
                             fluidRow(
-                              column(6,
-                                     selectInput("summary_category", 
-                                                 "Choose Category for Summary", 
-                                                 choices = names(
+                              column(6, selectInput("summary_category",
+                                                    "Choose Category for Summary", 
+                                                    choices = names(
                                                    select(data, where(is.factor)) |> 
                                                      select(-c("Order ID", 
                                                                "Customer ID", 
@@ -155,7 +169,7 @@ server <- function(input, output, session) {
     }
   )
   
-  # Map Plot: Total Sales by State (Plotly)
+  # Map Plot: Total Sales by State 
   output$state_map <- renderPlotly({
     req(filtered_data())
     summarized_data <- filtered_data() |> 
@@ -179,7 +193,7 @@ server <- function(input, output, session) {
     ggplotly(gg)
   })
   
-  # Monthly Sales Trends by Segment (Plotly)
+  # Monthly Sales Trends by Segment 
   output$monthly_sales_plot <- renderPlotly({
     req(filtered_data())
     monthly_sales <- filtered_data() |> 
@@ -195,7 +209,7 @@ server <- function(input, output, session) {
     ggplotly(gg)
   })
   
-  # Average Profit by Sub-Category (Plotly)
+  # Average Profit by Sub-Category 
   output$subcat_profit_plot <- renderPlotly({
     req(filtered_data())
     subcat_profit <- filtered_data() |> 
@@ -213,7 +227,7 @@ server <- function(input, output, session) {
     ggplotly(gg)
   })
   
-  # Sales Distribution Histogram (Plotly)
+  # Sales Distribution Histogram 
   output$sales_distribution_plot <- renderPlotly({
     req(filtered_data())
     gg <- ggplot(filtered_data(), aes(x = Sales)) +
@@ -224,7 +238,7 @@ server <- function(input, output, session) {
     ggplotly(gg)
   })
   
-  # Aggregated Quantity by Ship Mode and Segment (Plotly)
+  # Aggregated Quantity by Ship Mode and Segment 
   output$quantity_shipmode_segment_plot <- renderPlotly({
     req(filtered_data())
     quantity_data <- filtered_data() |> 
@@ -240,7 +254,7 @@ server <- function(input, output, session) {
     ggplotly(gg)
   })
   
-  # Sales vs Profit Scatter Plot with Discount Gradient (Plotly)
+  # Sales vs Profit Scatter Plot with Discount Gradient 
   output$sales_profit_scatter_plot <- renderPlotly({
     req(filtered_data())
     gg <- ggplot(filtered_data(), aes(x = Sales, y = Profit, color = Discount)) +
