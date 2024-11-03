@@ -5,6 +5,7 @@ library(maps)
 library(DT)
 library(lubridate)
 library(plotly)
+library(shinycssloaders)
 
 # Load data
 data <- read_excel("US Superstore data.xls") |>
@@ -89,17 +90,23 @@ ui <- fluidPage(
         tabPanel("Data Exploration", 
              tabsetPanel(
                tabPanel("Map Plot", 
-                        plotlyOutput("state_map")),  
+                        withSpinner(
+                          plotlyOutput("state_map"))), 
                tabPanel("Monthly Sales Trends by Segment", 
-                        plotlyOutput("monthly_sales_plot")),  
+                        withSpinner(
+                          plotlyOutput("monthly_sales_plot"))), 
                tabPanel("Average Profit by Sub-Category", 
-                        plotlyOutput("subcat_profit_plot")),  
+                        withSpinner(
+                          plotlyOutput("subcat_profit_plot"))), 
                tabPanel("Sales Distribution Histogram", 
-                        plotlyOutput("sales_distribution_plot")),  
+                        withSpinner(
+                          plotlyOutput("sales_distribution_plot"))),  
                tabPanel("Quantity by Ship Mode and Segment", 
-                        plotlyOutput("quantity_shipmode_segment_plot")),  
+                        withSpinner(
+                          plotlyOutput("quantity_shipmode_segment_plot"))),  
                tabPanel("Sales vs Profit Scatter Plot", 
-                        plotlyOutput("sales_profit_scatter_plot")),  
+                        withSpinner(
+                          plotlyOutput("sales_profit_scatter_plot"))),  
                tabPanel("Numeric Summary Statistics", 
                   fluidRow(
                     column(6, selectInput("summary_category",
